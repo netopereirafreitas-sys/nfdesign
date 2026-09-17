@@ -109,6 +109,30 @@ python -m trader_bot.bot
 Comece sempre com `MAX_POSITION=1` e `ORDER_QTY=1` até ter confiança
 total no comportamento do bot.
 
+## Alternativa: estratégia nativa dentro do Profit (NTSL)
+
+Além do bot Python (que roda fora do Profit, via ProfitDLL), este
+projeto também inclui `ntsl/ma_crossover.ntl`: a mesma lógica de
+cruzamento de médias móveis (9/21), escrita em NTSL, para rodar
+**dentro** do módulo Estrategista do próprio Profit Pro.
+
+Como usar:
+
+1. Abra Profit Pro > Ferramentas > Estrategista > Nova Estratégia.
+2. Cole o conteúdo de `ntsl/ma_crossover.ntl` e compile.
+3. Se houver erro de compilação, a sintaxe NTSL pode ter mudado na sua
+   versão do Profit — ajuste os nomes de função conforme o erro indicar
+   (a referência NTSL fica disponível no menu de Ajuda do Profit).
+4. Configure ativo, quantidade e stop na própria tela do Estrategista e
+   salve. É esse passo que gera o arquivo de configuração da estratégia
+   dentro do Profit (`.psf`) — ele não deve ser editado manualmente.
+5. Teste na conta simulador do Profit antes de qualquer conta real.
+
+**Escolha um caminho só.** Rodar o bot Python (`MODE=real`) e a
+estratégia NTSL dentro do Profit ao mesmo tempo, no mesmo ativo e
+conta, faz os dois enviarem ordens de forma independente — você
+acabaria com posição dobrada ou conflitante.
+
 ## Limitações conhecidas
 
 - As assinaturas ctypes em `profit_dll_gateway.py` são baseadas na
