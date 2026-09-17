@@ -29,6 +29,7 @@ class Settings:
     max_daily_loss: float
     stop_loss_points: float
     take_profit_points: float
+    max_consecutive_losses: int
 
     # ProfitDLL / XP credentials, only required when mode == "real"
     profit_dll_path: str
@@ -52,6 +53,7 @@ def load_settings() -> Settings:
         max_daily_loss=_get_float("MAX_DAILY_LOSS", -500.0),
         stop_loss_points=_get_float("STOP_LOSS_POINTS", 500.0),
         take_profit_points=_get_float("TAKE_PROFIT_POINTS", 1000.0),
+        max_consecutive_losses=_get_int("MAX_CONSECUTIVE_LOSSES", 3),
         profit_dll_path=os.getenv("PROFIT_DLL_PATH", "ProfitDLL64.dll"),
         profit_activation_key=os.getenv("PROFIT_ACTIVATION_KEY", ""),
         profit_login=os.getenv("PROFIT_LOGIN", ""),

@@ -9,6 +9,7 @@ def make_manager(**overrides) -> RiskManager:
         max_daily_loss=-500.0,
         stop_loss_points=100.0,
         take_profit_points=200.0,
+        max_consecutive_losses=3,
     )
     defaults.update(overrides)
     return RiskManager(RiskLimits(**defaults))
@@ -62,3 +63,56 @@ def test_register_fill_realizes_pnl_on_flip():
     risk.register_fill("SELL", 2, price=90.0)
     assert risk.position == -1
     assert risk.realized_pnl == pytest.approx(-10.0)
+
+
+def test_consecutive_losses_halt_trading():
+    risk = make_manager(max_position=1, max_consecutive_losses=3)
+    # Three losing round-trips in a row: buy at 100, sell lower, each time.
+    for _ in range(3):
+        risk.register_fill("BUY", 1, price=100.0)
+        risk.register_fill("SELL", 1, price=90.0)
+
+    assert risk.consecutive_losses == 3
+    assert risk.halted
+    with pytest.raises(TradingHaltedError):
+        risk.approve_order("BUY", 1)
+
+
+def test_winning_trade_resets_consecutive_losses():
+    risk = make_manager(max_position=1, max_consecutive_losses=3)
+    risk.register_fill("BUY", 1, price=100.0)
+    risk.register_fill("SELL", 1, price=90.0)  # loss #1
+    risk.register_fill("BUY", 1, price=90.0)
+    risk.register_fill("SELL", 1, price=100.0)  # win, resets streak
+
+    assert risk.consecutive_losses == 0
+    assert not risk.halted
+
+
+def test_max_consecutive_losses_zero_disables_check():
+    risk = make_manager(max_position=1, max_consecutive_losses=0)
+    for _ in range(10):
+        risk.register_fill("BUY", 1, price=100.0)
+        risk.register_fill("SELL", 1, price=90.0)
+
+    assert not risk.halted
+
+
+def test_opening_and_adding_to_position_does_not_affect_streak():
+    risk = make_manager(max_position=5, max_consecutive_losses=3)
+    risk.register_fill("BUY", 1, price=100.0)
+    risk.register_fill("BUY", 1, price=101.0)  # adds to position, nothing closed
+    assert risk.consecutive_losses == 0
+    assert not risk.halted
+
+
+def test_reset_daily_counters_clears_halt_and_streak():
+    risk = make_manager(max_position=1, max_consecutive_losses=1)
+    risk.register_fill("BUY", 1, price=100.0)
+    risk.register_fill("SELL", 1, price=90.0)
+    assert risk.halted
+
+    risk.reset_daily_counters()
+    assert not risk.halted
+    assert risk.consecutive_losses == 0
+    assert risk.approve_order("BUY", 1) == 1

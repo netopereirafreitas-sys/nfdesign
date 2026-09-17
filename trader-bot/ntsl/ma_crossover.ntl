@@ -1,5 +1,6 @@
 {
-  Estrategia: Cruzamento de Medias Moveis (MA Crossover)
+  Estrategia: Cruzamento de Medias Moveis (MA Crossover) + limite de
+  perdas consecutivas.
   Ativo alvo: WIN (mini indice)
 
   *** IMPORTANTE ***
@@ -8,9 +9,11 @@
 
     1. Cole este código dentro do Estrategista (Profit Pro > Ferramentas
        > Estrategista > Nova Estratégia) e use o botão de compilar.
-    2. Se aparecer erro de compilação, copie a mensagem exata e ajuste
-       (nomes de função como Media/CompraAMercado podem ter mudado de
-       nome ou assinatura na sua versão).
+    2. Se aparecer erro de compilação, copie a mensagem exata e ajuste.
+       As partes com MAIOR chance de precisar de ajuste na sua versão
+       estão marcadas com "TODO(verify)" abaixo: nomes de função como
+       Media/CompraAMercado/Data, a sintaxe de declaração de
+       Procedure, e o comportamento de "Exit" dentro do corpo principal.
     3. Depois de compilar, configure dentro do editor: ativo (WIN do
        vencimento vigente), quantidade, stop e horário de operação.
        É esse passo de "Salvar" que gera o arquivo de configuração do
@@ -23,29 +26,84 @@
       conta — os dois enviariam ordens de forma independente e você
       acabaria com posição dobrada / conflitante. Escolha um dos dois
       caminhos. ***
+
+  Regra de risco adicionada nesta versão: depois de MAX_PERDAS_SEGUIDAS
+  operações fechadas com prejuízo em sequência, a estratégia para de
+  abrir novas posições pelo resto do dia. O contador zera sozinho no
+  primeiro candle de um novo dia (comparando a data do candle atual com
+  a do candle anterior). Ainda assim, monitore o robô manualmente —
+  isso reduz risco, não elimina a necessidade de acompanhamento.
 }
+
+Const
+  MAX_PERDAS_SEGUIDAS = 3;
 
 Var
   MediaRapida, MediaLenta: Float;
+  PrecoEntrada: Float;
+  PerdasSeguidas: Integer;
+  OperacaoHalted: Boolean;
+  UltimaData: Float; { TODO(verify): use o tipo/funcao de data da sua versao (Data, DataAtual, etc.) }
+
+Procedure RegistrarResultadoOperacao(Resultado: Float);
+{ TODO(verify): confirme se sua versao do NTSL aceita declaracao de
+  Procedure com parametro deste jeito. Caso nao compile, substitua por
+  um bloco "if" repetido inline nos dois pontos onde a posicao fecha
+  (compra->venda e venda->compra), removendo esta procedure. }
+Begin
+  If Resultado < 0 then
+  begin
+    PerdasSeguidas := PerdasSeguidas + 1;
+    If PerdasSeguidas >= MAX_PERDAS_SEGUIDAS then
+      OperacaoHalted := True;
+  end
+  else
+    PerdasSeguidas := 0;
+End;
 
 Begin
+  { Reseta os contadores no primeiro candle de um novo dia. }
+  If Data <> UltimaData then { TODO(verify): nome da funcao de data }
+  begin
+    UltimaData := Data;
+    PerdasSeguidas := 0;
+    OperacaoHalted := False;
+  end;
+
   MediaRapida := Media(9, Fechamento);
   MediaLenta := Media(21, Fechamento);
+
+  If OperacaoHalted then
+    Exit; { TODO(verify): "Exit" encerra so esta chamada da estrategia,
+            sem fechar posicao aberta. Se ja houver posicao aberta no
+            momento do halt, ela permanece ate seu stop/alvo normal. }
 
   If SemPosicao then
   begin
     If MediaRapida > MediaLenta then
+    begin
       CompraAMercado;
+      PrecoEntrada := Fechamento;
+    end;
 
     If MediaRapida < MediaLenta then
+    begin
       VendaAMercado;
+      PrecoEntrada := Fechamento;
+    end;
   end;
 
   If PosicaoComprada then
     If MediaRapida < MediaLenta then
+    begin
       VendaAMercado;
+      RegistrarResultadoOperacao(Fechamento - PrecoEntrada);
+    end;
 
   If PosicaoVendida then
     If MediaRapida > MediaLenta then
+    begin
       CompraAMercado;
+      RegistrarResultadoOperacao(PrecoEntrada - Fechamento);
+    end;
 End;

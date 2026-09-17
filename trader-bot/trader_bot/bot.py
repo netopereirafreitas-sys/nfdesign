@@ -68,6 +68,7 @@ def run(settings: Settings) -> None:
             max_daily_loss=settings.max_daily_loss,
             stop_loss_points=settings.stop_loss_points,
             take_profit_points=settings.take_profit_points,
+            max_consecutive_losses=settings.max_consecutive_losses,
         )
     )
 
@@ -80,6 +81,11 @@ def run(settings: Settings) -> None:
             risk.register_fill(fill.side, fill.quantity, fill.price)
             if stop_reason == "daily_loss":
                 risk.force_halt(stop_reason)
+            if risk.halted:
+                logger.warning(
+                    "Trading halted for today (consecutive_losses=%d) - stopping bot",
+                    risk.consecutive_losses,
+                )
                 data_source.stop()
             return
 
@@ -96,9 +102,16 @@ def run(settings: Settings) -> None:
         fill = broker.send_order(settings.ticker, signal.value, qty, bar.price)
         risk.register_fill(fill.side, fill.quantity, fill.price)
         logger.info(
-            "Signal %s -> filled %d @ %.2f | position=%d realized_pnl=%.2f",
+            "Signal %s -> filled %d @ %.2f | position=%d realized_pnl=%.2f consecutive_losses=%d",
             signal.value, fill.quantity, fill.price, risk.position, risk.realized_pnl,
+            risk.consecutive_losses,
         )
+        if risk.halted:
+            logger.warning(
+                "Trading halted for today (consecutive_losses=%d) - stopping bot",
+                risk.consecutive_losses,
+            )
+            data_source.stop()
 
     try:
         data_source.subscribe(settings.ticker, on_bar)

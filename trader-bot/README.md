@@ -105,6 +105,7 @@ python -m trader_bot.bot
 | `MAX_DAILY_LOSS` | Perda diária máxima (P&L, número negativo) antes de parar | `-500` |
 | `STOP_LOSS_POINTS` | Stop-loss por posição, em pontos | `500` |
 | `TAKE_PROFIT_POINTS` | Take-profit por posição, em pontos | `1000` |
+| `MAX_CONSECUTIVE_LOSSES` | Para o bot pelo resto do dia após N operações perdedoras seguidas (0 desativa) | `3` |
 
 Comece sempre com `MAX_POSITION=1` e `ORDER_QTY=1` até ter confiança
 total no comportamento do bot.
@@ -113,8 +114,10 @@ total no comportamento do bot.
 
 Além do bot Python (que roda fora do Profit, via ProfitDLL), este
 projeto também inclui `ntsl/ma_crossover.ntl`: a mesma lógica de
-cruzamento de médias móveis (9/21), escrita em NTSL, para rodar
-**dentro** do módulo Estrategista do próprio Profit Pro.
+cruzamento de médias móveis (9/21), com limite de perdas consecutivas
+(para de operar após 3 perdas seguidas no dia, zera no dia seguinte),
+escrita em NTSL, para rodar **dentro** do módulo Estrategista do
+próprio Profit Pro.
 
 Como usar:
 
